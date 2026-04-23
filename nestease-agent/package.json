@@ -1,0 +1,25 @@
+{
+  "name": "nestease-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "validate:sms": "tsx src/sms/echo-test.ts",
+    "validate:agent": "tsx src/agent/validate.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@supabase/supabase-js": "^2.103.3",
+    "fastify": "^5.3.3",
+    "telnyx": "^6.40.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

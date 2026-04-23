@@ -1,0 +1,10 @@
+export { Navbar } from "./navbar";
+export { HeroKanban, Hero } from "./hero";
+export { PainPoints } from "./pain-points";
+export { Features } from "./features";
+export { AICapabilities } from "./ai-capabilities";
+export { Pricing } from "./pricing";
+export { Workflow } from "./workflow";
+export { SocialProof } from "./social-proof";
+export { FinalCTA } from "./final-cta";
+export { Footer } from "./footer";
