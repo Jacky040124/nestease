@@ -1,270 +1,238 @@
-<p align="center">
-  <img src="docs/hero.svg" alt="NestEase - AI-Powered Property Management" width="100%">
-</p>
+<div align="center">
+
+# NestEase
+
+**AI-native maintenance coordination for property managers working with contractors who live in SMS—not another portal.**
+
+NestEase turns a repair request into a controlled workflow: dispatch, bilingual contractor conversation, structured quote, owner approval, completion evidence, and tenant verification.
+
+</div>
+
+![NestEase product overview: a property-management work-order dashboard paired with a sanitized bilingual contractor SMS workflow](docs/readme-hero.png)
+
+> The product UI is from the repository's demo workspace. The SMS conversation is a sanitized composite based on implemented agent prompts and tools; it contains no production messages or customer data.
 
 <p align="center">
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" alt="Supabase"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Claude_AI-Managed_Agents-D97706?logo=anthropic&logoColor=white" alt="Claude AI"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Telnyx-SMS-00C08B" alt="Telnyx SMS"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Vercel-Deployed-black?logo=vercel" alt="Vercel"></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Railway-Deployed-0B0D0E?logo=railway" alt="Railway"></a>
+  <img src="https://img.shields.io/badge/9-AI_tools-0D9488?style=flat-square" alt="9 AI tools">
+  <img src="https://img.shields.io/badge/9_states-29_transitions-0D9488?style=flat-square" alt="9 states and 29 transitions">
+  <img src="https://img.shields.io/badge/38_API_routes-36_test_files-0D9488?style=flat-square" alt="38 API routes and 36 test files">
+  <img src="https://img.shields.io/badge/status-portfolio_MVP-334155?style=flat-square" alt="Portfolio MVP">
 </p>
 
----
+## Why this is more than a CRUD dashboard
 
-## Problem
+Property maintenance is a multi-party coordination problem. Tenants report issues, property managers dispatch work, contractors quote and complete jobs, owners approve costs, and tenants verify the result. Most contractors are already reachable by text, so NestEase puts the AI at that boundary and keeps human decisions visible in the dashboard.
 
-Property managers in Vancouver's rental market coordinate maintenance across dozens of contractors via phone calls and text messages in multiple languages. The workflow is manual: dispatch a work order, wait for a quote, get owner approval, track completion, verify the work. Every step requires back-and-forth communication, often in both English and Chinese.
+| Verified proof point | What exists in the codebase |
+| --- | --- |
+| **Tool-using AI agent** | 9 domain tools for identity, work-order lookup, acceptance, quoting, completion, escalation, and memory—not a free-form chatbot |
+| **Controlled business workflow** | 9 work-order states with 29 allowed transition edges, validation, side effects, hold/resume, rejection, follow-up, and auto-approval paths |
+| **Full product surface** | 38 API route handlers, 12 dashboard pages, 15 database migrations, and 36 unit/integration/E2E test files across two deployable services |
 
-Contractors don't use apps. They're driving between jobs and communicate via SMS. Existing property management software assumes everyone will log in to a web portal, which doesn't match reality.
+## What I engineered
 
-## Solution
+- **A bilingual, tool-driven contractor agent.** The agent can switch between Chinese and English, retrieve current work-order context, collect itemized quotes, require confirmation before writes, receive MMS completion photos, and escalate uncertainty to a property manager.
+- **A stateful maintenance engine.** One transition layer validates the lifecycle from `pending_assignment` through approval, work, verification, completion, cancellation, and hold/resume while emitting auditable side effects.
+- **Purpose-built interfaces for four roles.** Property managers use the dashboard; contractors work through SMS or a lightweight authenticated portal; owners approve through expiring signed links; tenants submit and verify without creating an account.
+- **Operational safeguards.** The code includes persistent agent sessions, database-backed notification deduplication, optimistic workflow checks, HMAC-signed external links, server-side cost calculation, and ownership-aware API handlers.
+- **A tested two-service system.** The Next.js product and Fastify agent service share the same Supabase model, with Vitest, Playwright, mocked-SMS flows, and real-database E2E coverage where credentials are available.
 
-NestEase is an AI-native property management platform that automates the entire maintenance workflow through an AI agent that communicates with contractors via SMS in their preferred language (Chinese/English).
+## One maintenance loop
 
-The AI agent handles:
-- Dispatching work orders and collecting contractor responses
-- Guiding contractors through quoting (labor, materials, timeline)
-- Notifying contractors of approvals, rejections, and cancellations
-- Collecting completion photos and notes
-- Escalating issues to the property manager when needed
+```mermaid
+flowchart LR
+    T[Tenant reports repair] --> PM[PM reviews and dispatches]
+    PM --> AI[AI agent texts contractor]
+    AI <--> C[Contractor accepts and quotes]
+    C --> O[Owner reviews signed approval link]
+    O --> C2[Contractor completes work + photos]
+    C2 --> V[Tenant or PM verifies completion]
+    V --> D[Dashboard history and report]
 
-The PM manages everything from a web dashboard without making a single phone call.
-
-## How It Works
-
+    SM{{Validated state machine}} -. controls .-> PM
+    SM -. controls .-> AI
+    SM -. controls .-> O
+    SM -. controls .-> V
 ```
-Tenant submits          PM dispatches           AI Agent texts            Contractor
-repair request    ->    work order on      ->   contractor via SMS   ->   accepts, quotes,
-via web link            dashboard               (bilingual, natural       completes work
-                                                language)
-                                    |
-                        Owner approves/rejects quote via email
-                                    |
-                        PM monitors everything on dashboard
-```
 
-**End-to-end flow:**
-1. Tenant reports issue via a permanent repair link (per-property, no login needed)
-2. PM sees it on the dashboard, assigns a contractor with one click
-3. AI agent texts the contractor: "Hey, there's a new job at [address]. Leaky faucet. Can you take it?"
-4. Contractor replies via SMS, agent guides them through quoting
-5. Quote goes to owner for approval (email with signed link)
-6. Owner approves -> agent notifies contractor to start work
-7. Contractor finishes, sends photos via SMS -> agent collects completion report
-8. PM verifies on dashboard -> done
+The agent handles communication and structured data collection. It does **not** make owner approval decisions or silently advance high-impact actions; those decisions remain explicit workflow transitions.
 
-## Screenshots
+## Product tour
 
-<p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="80%">
-  <br><em>PM Dashboard: work order overview, agent activity, property stats</em>
-</p>
+<table>
+  <tr>
+    <td width="50%"><img src="nestease/public/hero-kanban.png" alt="Work orders organized across lifecycle columns"></td>
+    <td width="50%"><img src="docs/screenshots/agent.png" alt="AI agent conversation monitoring"></td>
+  </tr>
+  <tr>
+    <td><strong>Work-order control plane</strong><br>Track assignment, quoting, approval, work, and verification without losing the operational handoff.</td>
+    <td><strong>Agent observability</strong><br>Monitor contractor sessions, linked work orders, and exceptional conversations from the PM dashboard.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/contractors.png" alt="Contractor management with specialties and performance signals"></td>
+    <td><img src="docs/screenshots/dashboard.png" alt="Property manager dashboard overview"></td>
+  </tr>
+  <tr>
+    <td><strong>Contractor operations</strong><br>Manage specialties, assignments, notes, ratings, and work history.</td>
+    <td><strong>Portfolio overview</strong><br>See the work that needs attention alongside properties, contractors, and agent activity.</td>
+  </tr>
+</table>
 
-<p align="center">
-  <img src="docs/screenshots/work-orders.png" alt="Work Orders" width="80%">
-  <br><em>Kanban board: drag-and-drop work order management with status columns</em>
-</p>
+<sub>All screenshots show demo content. Names, numbers, addresses, and conversations should be replaced with synthetic data before public demos.</sub>
 
-<p align="center">
-  <img src="docs/screenshots/agent.png" alt="Agent Management" width="80%">
-  <br><em>AI Agent management: monitor all contractor conversations and session status</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/contractors.png" alt="Contractors" width="80%">
-  <br><em>Contractor management: specialties, ratings, and invite codes</em>
-</p>
-
-## Architecture
+## System design
 
 ```mermaid
 graph TB
-    subgraph "Frontend & API (Vercel)"
-        A[Next.js 16 App Router] --> B[Dashboard UI]
-        A --> C[REST API Routes]
-        A --> D[State Machine Engine]
-        A --> E[PDF Reports]
-        A --> F[Landing Page]
+    subgraph Product[Next.js product]
+        UI[PM + tenant + owner + contractor interfaces]
+        API[38 API route handlers]
+        FSM[Work-order state machine]
+        AUTH[Supabase Auth + signed external links]
     end
 
-    subgraph "AI Agent Service (Railway)"
-        G[Fastify Server] --> H[Claude Managed Agents API]
-        G --> I[Outbound Notifier]
-        G --> J[Session Manager]
-        G --> K[9 Custom Tools]
+    subgraph Agent[Fastify agent service]
+        WEBHOOK[Telnyx SMS/MMS webhook]
+        RUNTIME[Claude agent runtime]
+        TOOLS[9 domain tools]
+        SESSIONS[Persistent contractor sessions]
     end
 
-    subgraph "External Services"
-        L[Telnyx SMS Gateway]
-        M[Supabase - PostgreSQL + Auth + Realtime + Storage]
-        N[Resend Email]
-    end
+    DB[(Supabase PostgreSQL)]
+    EMAIL[Resend email]
 
-    C --> M
-    D --> M
-    B --> C
-    L -->|Inbound SMS| G
-    G -->|Outbound SMS| L
-    H --> K
-    K --> M
-    I -->|Realtime subscription| M
-    J --> M
-    C --> N
-    E --> N
-
-    style A fill:#0D9488,color:#fff
-    style G fill:#065F46,color:#fff
-    style H fill:#D97706,color:#fff
-    style M fill:#3FCF8E,color:#fff
+    UI --> API
+    API --> FSM
+    API --> DB
+    API --> EMAIL
+    WEBHOOK --> RUNTIME
+    RUNTIME --> TOOLS
+    TOOLS --> API
+    SESSIONS --> DB
+    DB -->|work-order events| RUNTIME
+    AUTH --> API
 ```
 
-### Key Architecture Decisions
+### Deliberate engineering choices
 
-| Decision | Rationale |
-|----------|-----------|
-| **Per-PM Agent instances** | Claude Managed Agents API doesn't support per-session prompt override; each PM gets their own agent with tailored system prompt |
-| **Persistent sessions** | One session per contractor-PM pair, never expires. Claude handles context compaction automatically |
-| **Database-level dedup** | Partial unique index + atomic UPDATE prevents duplicate SMS during zero-downtime deploys |
-| **HMAC-SHA256 signed URLs** | External users (tenants, owners) access the system via cryptographically signed links, no login required |
-| **State machine with side effects** | 7 work order states with validated transitions, automatic notifications, and optimistic locking |
+| Choice | Why it matters |
+| --- | --- |
+| **Domain tools instead of unrestricted agent writes** | Each action has typed input, preconditions, and explicit confirmation requirements. |
+| **State machine as the workflow authority** | Invalid transitions fail closed instead of relying on UI order or model judgment. |
+| **One active session per PM–contractor pair** | Conversations keep operational context while a partial unique index prevents duplicate active sessions. |
+| **Database-backed outbound deduplication** | Rolling deploys and realtime reconnects do not intentionally send the same notification twice. |
+| **Signed, expiring links for external actors** | Owners and tenants can take narrow actions without receiving permanent dashboard accounts. |
 
-## Tech Stack
+## Verified implementation snapshot
 
-### Frontend & API (`/nestease`)
+These numbers are derived from the checked-in source, not product claims:
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Language | TypeScript 5.x |
-| Styling | Tailwind CSS v4 + Design Tokens |
-| Database | Supabase (PostgreSQL + Auth + Storage + Realtime) |
-| Email | Resend (approval notifications, completion reports) |
-| PDF | Server-side HTML rendering with @media print |
-| Drag & Drop | @dnd-kit (Kanban board) |
-| Testing | Vitest (unit) + Playwright (E2E) |
-| Deployment | Vercel |
+| Surface | Count | Source |
+| --- | ---: | --- |
+| AI domain tools | **9** | [`tool-definitions.ts`](nestease-agent/src/agent/tool-definitions.ts) |
+| Work-order states | **9** | [`types/index.ts`](nestease/src/types/index.ts) |
+| Allowed transition edges | **29** | [`VALID_TRANSITIONS`](nestease/src/types/index.ts) |
+| Next.js API route handlers | **38** | [`src/app/api`](nestease/src/app/api) |
+| Dashboard pages | **12** | [`src/app/dashboard`](nestease/src/app/dashboard) |
+| Database migrations | **15** | [`supabase/migrations`](nestease/supabase/migrations) |
+| Automated test files | **36** | [`src/__tests__`](nestease/src/__tests__) + [`e2e`](nestease/e2e) |
 
-### AI Agent Service (`/nestease-agent`)
+## Technology
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js + Fastify |
-| AI | Claude Managed Agents API (@anthropic-ai/sdk) |
-| SMS | Telnyx SDK v6 (bidirectional SMS + MMS) |
-| Database | Supabase (shared with main app) |
-| Deployment | Railway (zero-downtime rolling deploys) |
+| Product application | Agent service |
+| --- | --- |
+| Next.js 16, React 19, TypeScript 5 | Node.js, Fastify 5, TypeScript 5 |
+| Tailwind CSS 4, dnd-kit | Claude via `@anthropic-ai/sdk` |
+| Supabase Auth, PostgreSQL, Realtime, Storage | Telnyx SMS/MMS + WebSocket support |
+| Resend email, server-rendered PDF reports | Shared Supabase data model |
+| Vitest + Playwright | Scenario-based validation scripts |
 
-### AI Agent Tools (9 custom tools)
+## Project status
 
-| Tool | Purpose |
-|------|---------|
-| `get_work_order` | Fetch work order details |
-| `list_work_orders` | List contractor's active work orders |
-| `accept_work_order` | Accept a dispatched job |
-| `submit_quote` | Submit itemized quote (labor hours x rate, materials, timeline) |
-| `submit_completion` | Submit completion report with photos |
-| `notify_pm` | Escalate issues to the property manager |
-| `confirm_identity` | First-time contractor identity verification |
-| `save_memory` | Persist contractor preferences and context |
-| `get_memories` | Retrieve saved contractor context |
+NestEase is a **portfolio MVP and engineering prototype**, not a production property-management service. The repository contains the implemented UI, API, workflow engine, agent service, database migrations, and automated tests. Running the complete flow requires your own Supabase, Anthropic, Telnyx, and Resend credentials.
 
-## Database Schema
+- The screenshots and hero use demo or sanitized content; they are not evidence of a live customer deployment.
+- The 36 test files document substantial intended coverage, but this repository snapshot does not currently have a fully green test/lint/type-check baseline; no passing-CI claim is made here.
+- There is no uptime commitment, third-party security audit, or production support policy.
+- Several dashboard modules are visibly marked `Soon`; the maintenance workflow is the implemented product core.
+- Before handling real properties or people, complete a privacy review, threat model, retention policy, vendor review, and production authorization audit.
 
-15 migrations managing these core tables:
+## Security and privacy
 
-- `pm` / `owner` / `tenant` / `contractor` - Multi-role user management
-- `property` - Properties with photo storage and permanent repair links
-- `work_order` - 7-state FSM with optimistic locking
-- `work_order_status_history` - Full audit trail with atomic dedup flag
-- `quote` - Itemized quotes (labor, materials, other costs)
-- `completion_report` - Completion data with photo references
-- `notification` - Multi-channel notification tracking
-- `agent_sessions` - AI agent session management (partial unique index)
-- `agent_conversation_log` - Full conversation audit trail
-- `agent_memories` - Contractor preference persistence
-- `leads` - Landing page lead capture
+Implemented controls include Supabase authentication for property managers, HMAC-SHA256 contractor sessions, expiring signed links for owner/tenant actions, timing-safe signature comparison, environment-based secrets, request authentication helpers, and selected RLS/storage policies in the migrations.
 
-## Security
+Important deployment responsibilities:
 
-- **Dual authentication**: Supabase Auth (JWT) for PMs, HMAC-SHA256 signed URLs for external users
-- **Row Level Security**: Supabase RLS policies enforce data isolation per PM
-- **PM ownership verification**: All API routes validate PM owns the requested resource
-- **No secrets in code**: All credentials via environment variables with startup validation
-- **Atomic dedup**: PostgreSQL row-level locking prevents duplicate notifications during deploys
-- **Partial unique index**: Database constraint prevents duplicate active sessions
+- The server uses a Supabase service-role client for backend operations, which can bypass RLS. Route-level authentication, ownership checks, and authorization tests are therefore critical controls and should be audited before production use.
+- Work orders can contain names, phone numbers, addresses, repair photos, quotes, and conversation logs. Use synthetic data in demos and define retention/deletion rules before collecting real data.
+- Review data processing and retention across Anthropic, Telnyx, Supabase, Resend, Vercel, and Railway for the jurisdiction where the system is deployed.
+- Rotate `LINK_SIGNING_SECRET`, `CONTRACTOR_JWT_SECRET`, service-role keys, and internal API keys through a managed secret store; never commit them.
 
-## Project Structure
+See [`SECURITY.md`](SECURITY.md) for responsible disclosure and the project's current security boundary.
 
-```
-nestease-portfolio/
-├── nestease/                    # Next.js main application
-│   ├── src/
-│   │   ├── app/                 # App Router pages & API routes
-│   │   │   ├── api/             # REST API (work-orders, contractors, properties, leads)
-│   │   │   └── dashboard/       # PM dashboard pages
-│   │   ├── components/          # React components (sidebar, landing, UI)
-│   │   ├── lib/                 # Shared utilities (auth, SMS, PDF, state machine)
-│   │   └── services/            # Business logic (state machine, side effects)
-│   ├── supabase/migrations/     # 15 SQL migrations
-│   └── e2e/                     # Playwright E2E tests
-│
-├── nestease-agent/              # AI Agent service
-│   ├── src/
-│   │   ├── agent/               # Core agent logic
-│   │   │   ├── session-manager.ts    # Session lifecycle + dedup
-│   │   │   ├── outbound-notifier.ts  # Realtime event → SMS notifications
-│   │   │   ├── tool-definitions.ts   # 9 custom tool schemas
-│   │   │   └── tool-handlers.ts      # Tool implementation logic
-│   │   ├── sms/                 # Telnyx webhook + SMS sender
-│   │   └── lib/                 # Supabase client, phone normalization
-│   └── tests/                   # Scenario-based integration tests
-│
-└── docs/                        # Screenshots and documentation
-```
-
-## Setup
+## Run locally
 
 ### Prerequisites
 
 - Node.js 20+
-- Supabase project (free tier works)
-- Telnyx account with SMS-enabled number
-- Anthropic API key (Claude Managed Agents access)
-- Resend account (for email notifications)
+- A Supabase project and Supabase CLI
+- Anthropic, Telnyx, and Resend credentials for the complete integrated flow
 
-### Main Application (`/nestease`)
+### 1. Product application
 
 ```bash
 cd nestease
 cp .env.example .env.local
-# Fill in your Supabase, Telnyx, and Resend credentials
-npm install
-npx supabase db push    # Apply migrations
-npm run dev              # http://localhost:3000
+# Fill in the required values in .env.local
+npm ci
+npx supabase db push
+npm run dev
 ```
 
-### AI Agent Service (`/nestease-agent`)
+The application starts at <http://localhost:3000>.
+
+### 2. Agent service
 
 ```bash
 cd nestease-agent
 cp .env.example .env
-# Fill in your Anthropic, Supabase, and Telnyx credentials
-npm install
+# Fill in the required values in .env
+npm ci
 npm run build
-npm start                # http://localhost:3001
+npm start
 ```
 
-### Telnyx Webhook
+The agent service defaults to <http://localhost:3001>. Point the Telnyx messaging-profile webhook at `https://your-agent-host/webhook/sms`.
 
-Point your Telnyx messaging profile webhook to:
+## Tests
+
+```bash
+cd nestease
+npm ci
+npm test -- --run
+npm run lint
+npm run build
+npx playwright test
 ```
-https://your-agent-url/webhook/sms
+
+Unit tests use mocks where appropriate. Tests labeled `real` and full browser/integration flows require the relevant database or external-service environment.
+
+## Repository layout
+
+```text
+.
+├── nestease/                  # Next.js product, API, state machine, migrations, tests
+│   ├── src/app/               # Role-specific pages and 38 API route handlers
+│   ├── src/services/          # Validated workflow transitions
+│   ├── src/__tests__/         # Unit and integration tests
+│   ├── e2e/                   # Playwright journeys
+│   └── supabase/migrations/   # 15 schema and reliability migrations
+├── nestease-agent/            # Fastify AI/SMS service
+│   ├── src/agent/             # Prompt, sessions, tools, handlers, outbound events
+│   └── src/sms/               # Telnyx webhook and sender
+└── docs/                      # Product screenshots and README visuals
 ```
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 Jacky Zhong
